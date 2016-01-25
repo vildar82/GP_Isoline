@@ -11,6 +11,7 @@ namespace GP_Isoline.Model
 
       public override void Explode(Entity entity, DBObjectCollection entitySet)
       {
+         base.Explode(entity, entitySet);
          Polyline pl = entity as Polyline;
          if (pl != null)
          {

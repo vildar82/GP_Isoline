@@ -30,7 +30,7 @@ namespace GP_Isoline.Model
          }
 
          // return the base
-         return ret;
+         return true;
       }
    }
 }
