@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -13,9 +10,9 @@ namespace GP_Isoline.Model
    public class Isoline
    {
       public const string RegAppNAME = "GP-Isoline";
+      public ObjectId IdPolyline { get; private set; }
       public bool IsIsoline { get; private set; }
       public bool IsNegate { get; private set; }
-      public ObjectId IdPolyline { get; private set; }
 
       public Isoline(Polyline pl)
       {
@@ -23,50 +20,12 @@ namespace GP_Isoline.Model
          getIsolineProperties(pl);
       }
 
-      public Isoline (ObjectId id)
+      public Isoline(ObjectId id)
       {
          IdPolyline = id;
-         using (var pl = id.Open( OpenMode.ForRead, false, true) as Polyline)
+         using (var pl = id.Open(OpenMode.ForRead, false, true) as Polyline)
          {
             getIsolineProperties(pl);
-         }
-      }
-
-      private void getIsolineProperties(Polyline pl)
-      {         
-         ResultBuffer rb = pl.GetXDataForApplication(RegAppNAME);
-         if (rb != null)
-         {
-            foreach (var item in rb)
-            {
-               if (item.TypeCode == (short)DxfCode.ExtendedDataInteger16)
-               {
-                  IsNegate = Convert.ToBoolean(item.Value);
-               }
-            }
-         }
-         IsIsoline = (rb != null);
-      }      
-
-      /// <summary>
-      /// Включение бергштрихов для полилинии - запись xdata
-      /// Должна быть запущена транзакция!!!
-      /// </summary>
-      public void Activate()
-      {
-         using (var pl = IdPolyline.GetObject(OpenMode.ForRead, false, true) as Polyline)
-         {
-            ResultBuffer rb = pl.GetXDataForApplication(RegAppNAME);
-            if (rb!=null)
-            {
-               return;
-            }
-            using (rb = new ResultBuffer(new TypedValue(1001, RegAppNAME),
-                                         new TypedValue((int)DxfCode.ExtendedDataInteger16, 0)))
-            {
-               pl.UpgradeOpen();
-               pl.XData = rb;
-            }
          }
       }
 
@@ -110,15 +69,27 @@ namespace GP_Isoline.Model
                }
                t.Commit();
             }
-         }        
+         }
       }
 
-      private static void SetLineXData(Line line)
-      {         
-         using (ResultBuffer rb = new ResultBuffer(new TypedValue(1001, RegAppNAME),
-                                      new TypedValue((int)DxfCode.ExtendedDataInteger16, 0)))
+      public static void RegAppIsoline()
+      {
+         Document doc = Application.DocumentManager.MdiActiveDocument;
+         Editor ed = doc.Editor;
+         Database db = doc.Database;
+
+         using (var t = doc.TransactionManager.StartTransaction())
          {
-            line.XData = rb;
+            RegAppTable rat = (RegAppTable)t.GetObject(db.RegAppTableId, OpenMode.ForRead, false);
+            if (!rat.Has(RegAppNAME))
+            {
+               rat.UpgradeOpen();
+               RegAppTableRecord ratr = new RegAppTableRecord();
+               ratr.Name = RegAppNAME;
+               rat.Add(ratr);
+               t.AddNewlyCreatedDBObject(ratr, true);
+            }
+            t.Commit();
          }
       }
 
@@ -151,61 +122,27 @@ namespace GP_Isoline.Model
                t.Commit();
             }
          }
-      }      
+      }
 
       /// <summary>
-      /// обратить бергштрихи у полилинии
+      /// Включение бергштрихов для полилинии - запись xdata
       /// Должна быть запущена транзакция!!!
       /// </summary>
-      public void ReverseIsoline()
+      public void Activate()
       {
-         using (var pl = IdPolyline.GetObject(OpenMode.ForWrite, false, true) as Polyline)
+         using (var pl = IdPolyline.GetObject(OpenMode.ForRead, false, true) as Polyline)
          {
             ResultBuffer rb = pl.GetXDataForApplication(RegAppNAME);
             if (rb != null)
             {
-               var data = rb.AsArray();
-               bool isFound = false;
-               for (int i = 0; i < data.Length; i++)
-               {
-                  var tv = data[i];
-                  if (tv.TypeCode == (short)DxfCode.ExtendedDataInteger16)
-                  {
-                     data[i] = new TypedValue((int)DxfCode.ExtendedDataInteger16, IsNegate? 0:1);
-                     IsNegate = !IsNegate;
-                     isFound = true;
-                     break;
-                  }
-               }
-               if (isFound)
-               {
-                  using (ResultBuffer rbNew = new ResultBuffer(data))
-                  {
-                     pl.XData = rbNew;
-                  }
-               }
-            }            
-         }
-      }
-
-      public static void RegAppIsoline()
-      {
-         Document doc = Application.DocumentManager.MdiActiveDocument;
-         Editor ed = doc.Editor;
-         Database db = doc.Database;
-         
-         using (var t = doc.TransactionManager.StartTransaction())
-         {
-            RegAppTable rat = (RegAppTable)t.GetObject(db.RegAppTableId, OpenMode.ForRead, false);
-            if (!rat.Has(RegAppNAME))
-            {
-               rat.UpgradeOpen();
-               RegAppTableRecord ratr = new RegAppTableRecord();
-               ratr.Name = RegAppNAME;
-               rat.Add(ratr);
-               t.AddNewlyCreatedDBObject(ratr, true);
+               return;
             }
-            t.Commit();
+            using (rb = new ResultBuffer(new TypedValue(1001, RegAppNAME),
+                                         new TypedValue((int)DxfCode.ExtendedDataInteger16, 0)))
+            {
+               pl.UpgradeOpen();
+               pl.XData = rb;
+            }
          }
       }
 
@@ -229,11 +166,71 @@ namespace GP_Isoline.Model
                line.Layer = pl.Layer;
                line.LineWeight = pl.LineWeight;
                line.Color = pl.Color;
-               line.Linetype = SymbolUtilityServices.LinetypeContinuousName;               
+               line.Linetype = SymbolUtilityServices.LinetypeContinuousName;
                lines.Add(line);
             }
          }
          return lines;
+      }
+
+      /// <summary>
+      /// обратить бергштрихи у полилинии
+      /// Должна быть запущена транзакция!!!
+      /// </summary>
+      public void ReverseIsoline()
+      {
+         using (var pl = IdPolyline.GetObject(OpenMode.ForWrite, false, true) as Polyline)
+         {
+            ResultBuffer rb = pl.GetXDataForApplication(RegAppNAME);
+            if (rb != null)
+            {
+               var data = rb.AsArray();
+               bool isFound = false;
+               for (int i = 0; i < data.Length; i++)
+               {
+                  var tv = data[i];
+                  if (tv.TypeCode == (short)DxfCode.ExtendedDataInteger16)
+                  {
+                     data[i] = new TypedValue((int)DxfCode.ExtendedDataInteger16, IsNegate ? 0 : 1);
+                     IsNegate = !IsNegate;
+                     isFound = true;
+                     break;
+                  }
+               }
+               if (isFound)
+               {
+                  using (ResultBuffer rbNew = new ResultBuffer(data))
+                  {
+                     pl.XData = rbNew;
+                  }
+               }
+            }
+         }
+      }
+
+      private static void SetLineXData(Line line)
+      {
+         using (ResultBuffer rb = new ResultBuffer(new TypedValue(1001, RegAppNAME),
+                                      new TypedValue((int)DxfCode.ExtendedDataInteger16, 0)))
+         {
+            line.XData = rb;
+         }
+      }
+
+      private void getIsolineProperties(Polyline pl)
+      {
+         ResultBuffer rb = pl.GetXDataForApplication(RegAppNAME);
+         if (rb != null)
+         {
+            foreach (var item in rb)
+            {
+               if (item.TypeCode == (short)DxfCode.ExtendedDataInteger16)
+               {
+                  IsNegate = Convert.ToBoolean(item.Value);
+               }
+            }
+         }
+         IsIsoline = (rb != null);
       }
    }
 }

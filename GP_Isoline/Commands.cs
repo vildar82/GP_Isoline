@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Autodesk.AutoCAD.ApplicationServices;
+﻿using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Runtime;
@@ -61,21 +56,6 @@ namespace GP_Isoline
          }
       }
 
-      private static void IsolinesOn()
-      {
-         ContextMenuIsoline.Attach();
-         if (_overruleIsolineDraw == null)
-         {
-            _overruleIsolineDraw = new IsolineDrawableOverrule();
-            Overrule.AddOverrule(RXClass.GetClass(typeof(Polyline)), _overruleIsolineDraw, false);
-         }
-         if (_overruleIsolineTrans == null)
-         {
-            _overruleIsolineTrans = new IsolineTransformOverrule();
-            Overrule.AddOverrule(RXClass.GetClass(typeof(Polyline)), _overruleIsolineTrans, false);
-         }
-      }
-
       private static void IsolinesOff()
       {
          ContextMenuIsoline.Detach();
@@ -88,6 +68,21 @@ namespace GP_Isoline
          {
             Overrule.RemoveOverrule(RXClass.GetClass(typeof(Polyline)), _overruleIsolineTrans);
             _overruleIsolineTrans = null;
+         }
+      }
+
+      private static void IsolinesOn()
+      {
+         ContextMenuIsoline.Attach();
+         if (_overruleIsolineDraw == null)
+         {
+            _overruleIsolineDraw = new IsolineDrawableOverrule();
+            Overrule.AddOverrule(RXClass.GetClass(typeof(Polyline)), _overruleIsolineDraw, false);
+         }
+         if (_overruleIsolineTrans == null)
+         {
+            _overruleIsolineTrans = new IsolineTransformOverrule();
+            Overrule.AddOverrule(RXClass.GetClass(typeof(Polyline)), _overruleIsolineTrans, false);
          }
       }
    }
