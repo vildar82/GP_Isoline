@@ -17,8 +17,7 @@ namespace GP_Isoline
       {
          Document doc = Application.DocumentManager.MdiActiveDocument;
          if (doc == null) return;
-
-         Isoline.RegAppIsoline();
+                  
          Editor ed = doc.Editor;
 
          Options = IsolineOptions.Load();

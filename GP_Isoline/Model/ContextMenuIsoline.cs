@@ -16,9 +16,7 @@ namespace GP_Isoline.Model
       {
          cme = new ContextMenuExtension();
          cme.Popup += cme_Popup;
-         //MenuItem mi = new MenuItem("ГП-Бергштрихи");
-         //mi.Click += PrintHello;
-         //cme.MenuItems.Add(mi);
+                  
          RXClass rxc = Entity.GetClass(typeof(Curve));
          Application.AddObjectContextMenuExtension(rxc, cme);
       }
@@ -61,57 +59,12 @@ namespace GP_Isoline.Model
             MenuItem miReverse = new MenuItem("Отразить Бергштрихи");
             miReverse.Click += ReverseIsolines;
             cme.MenuItems.Add(miReverse);
-         }
-
-         // Первый вариант: управление доступностью элементов без их удаления/добавления.
-         //foreach (MenuItem item in cme.MenuItems)
-         //    item.Enabled = isEnadled;
-
-         //// Второй вариант: динамическое удаление/добавление элементов меню.
-         //if (isMenuEnadled && cme.MenuItems.Count == 0)
-         //{
-         //   MenuItem mi = new MenuItem("My AcDbPolyline menu item");
-         //   mi.Click += new EventHandler(PrintHello);
-         //   cme.MenuItems.Add(mi);
-         //}
-         //else if (!isMenuEnadled)
-         //   foreach (MenuItem item in cme.MenuItems.ToArray())
-         //   {
-         //      item.Click -= new EventHandler(PrintHello);
-         //      cme.MenuItems.Remove(item);
-         //   }
+         }         
       }
 
       private static void ReverseIsolines(object sender, EventArgs e)
       {
-         Document doc = Application.DocumentManager.MdiActiveDocument;
-         using (doc.LockDocument())
-         {
-            Editor ed = doc.Editor;
-            PromptSelectionResult result = ed.SelectImplied();
-            if (result.Status == PromptStatus.OK)
-            {
-               var selIds = result.Value.GetObjectIds();
-               if (selIds.Count() > 0)
-               {
-                  using (var t = doc.Database.TransactionManager.StartTransaction())
-                  {
-                     foreach (var item in selIds)
-                     {
-                        if (item.ObjectClass.IsDerivedFrom(Isoline.RxCurve))
-                        {
-                           Isoline isoline = new Isoline(item);
-                           if (isoline.IsIsoline)
-                           {
-                              isoline.ReverseIsoline();
-                           }
-                        }
-                     }
-                     t.Commit();
-                  }
-               }
-            }
-         }
+         Isoline.ReverseIsolines();
       }
 
       private static void UnActivateIsolines(object sender, EventArgs e)

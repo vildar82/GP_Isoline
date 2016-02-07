@@ -44,6 +44,7 @@ namespace GP_Isoline.Model
          Document doc = Application.DocumentManager.MdiActiveDocument;
          using (doc.LockDocument())
          {
+            RegAppIsoline(doc.Database);
             Editor ed = doc.Editor;
             PromptSelectionResult result = ed.SelectImplied();
             if (result.Status == PromptStatus.OK)
@@ -92,6 +93,7 @@ namespace GP_Isoline.Model
          using (doc.LockDocument())
          {
             Database db = doc.Database;
+            RegAppIsoline(db);
             using (var t = db.TransactionManager.StartTransaction())
             {
                var bt = db.BlockTableId.GetObject(OpenMode.ForRead) as BlockTable;
@@ -130,24 +132,19 @@ namespace GP_Isoline.Model
          }
       }
 
-      public static void RegAppIsoline()
-      {
-         Document doc = Application.DocumentManager.MdiActiveDocument;
-         Editor ed = doc.Editor;
-         Database db = doc.Database;
-
-         using (var t = doc.TransactionManager.StartTransaction())
+      public static void RegAppIsoline(Database db)
+      {  
+         using (RegAppTable rat = db.RegAppTableId.Open(OpenMode.ForRead, false) as RegAppTable)
          {
-            RegAppTable rat = (RegAppTable)t.GetObject(db.RegAppTableId, OpenMode.ForRead, false);
             if (!rat.Has(RegAppNAME))
             {
                rat.UpgradeOpen();
-               RegAppTableRecord ratr = new RegAppTableRecord();
-               ratr.Name = RegAppNAME;
-               rat.Add(ratr);
-               t.AddNewlyCreatedDBObject(ratr, true);
+               using (RegAppTableRecord ratr = new RegAppTableRecord())
+               {
+                  ratr.Name = RegAppNAME;
+                  rat.Add(ratr);
+               }
             }
-            t.Commit();
          }
       }
 
@@ -168,6 +165,7 @@ namespace GP_Isoline.Model
          using (doc.LockDocument())
          {
             Database db = doc.Database;
+            RegAppIsoline(db);
             using (var t = db.TransactionManager.StartTransaction())
             {
                var bt = db.BlockTableId.GetObject(OpenMode.ForRead) as BlockTable;
@@ -199,7 +197,7 @@ namespace GP_Isoline.Model
       /// Включение/отключение бергштрихов для полилинии - запись xdata
       /// Должна быть запущена транзакция!!!
       /// </summary>
-      public void Activate(bool activate)
+      private void Activate(bool activate)
       {
          using (var curve = IdCurve.GetObject(OpenMode.ForRead, false, true) as Curve)
          {
@@ -279,6 +277,39 @@ namespace GP_Isoline.Model
                   using (ResultBuffer rbNew = new ResultBuffer(data))
                   {
                      curve.XData = rbNew;
+                  }
+               }
+            }
+         }
+      }
+
+      public static void ReverseIsolines()
+      {
+         Document doc = Application.DocumentManager.MdiActiveDocument;
+         using (doc.LockDocument())
+         {
+            Editor ed = doc.Editor;
+            RegAppIsoline(doc.Database);
+            PromptSelectionResult result = ed.SelectImplied();
+            if (result.Status == PromptStatus.OK)
+            {
+               var selIds = result.Value.GetObjectIds();
+               if (selIds.Count() > 0)
+               {
+                  using (var t = doc.Database.TransactionManager.StartTransaction())
+                  {
+                     foreach (var item in selIds)
+                     {
+                        if (item.ObjectClass.IsDerivedFrom(Isoline.RxCurve))
+                        {
+                           Isoline isoline = new Isoline(item);
+                           if (isoline.IsIsoline)
+                           {
+                              isoline.ReverseIsoline();
+                           }
+                        }
+                     }
+                     t.Commit();
                   }
                }
             }
