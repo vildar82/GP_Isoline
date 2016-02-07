@@ -252,7 +252,7 @@ namespace GP_Isoline.Model
 
       private Line getLine(LineSegment3d segment, Curve curve)
       {
-         Vector3d vectorIsoline = segment.Direction.GetPerpendicularVector() * 5;
+         Vector3d vectorIsoline = segment.Direction.GetPerpendicularVector() * Commands.Options.DashLength;
          if (IsNegate)
          {
             vectorIsoline = vectorIsoline.Negate();

@@ -36,6 +36,10 @@
     <AssemblyInfoVersionSettings>None.None.DayOfYearStamp.Increment</AssemblyInfoVersionSettings>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="AcadLib">
+      <HintPath>..\..\..\AcadLib\AcadLib\bin\Release\AcadLib.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="AcCoreMgd, Version=20.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\AutoCAD.NET.Core.20.0.1\lib\45\AcCoreMgd.dll</HintPath>
       <Private>False</Private>
@@ -76,8 +80,14 @@
       <HintPath>..\packages\AutoCAD.NET.20.0.1\lib\45\AdWindows.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="AutoCAD_PIK_Manager">
+      <HintPath>..\..\..\AutoCAD_PIK_Manager\AutoCAD_PIK_Manager\bin\Release\AutoCAD_PIK_Manager.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -88,14 +98,27 @@
   <ItemGroup>
     <Compile Include="Commands.cs" />
     <Compile Include="Model\ContextMenuIsoline.cs" />
+    <Compile Include="Model\FormIsolineOptions.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Model\FormIsolineOptions.Designer.cs">
+      <DependentUpon>FormIsolineOptions.cs</DependentUpon>
+    </Compile>
     <Compile Include="Model\Isoline.cs" />
     <Compile Include="Model\IsolineDrawableOverrule.cs" />
     <Compile Include="Model\IsolineTransformOverrule.cs" />
+    <Compile Include="Model\IsolineOptions..cs" />
+    <Compile Include="Model\Log.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="AutoCADNetLoad.scr" />
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Model\FormIsolineOptions.resx">
+      <DependentUpon>FormIsolineOptions.cs</DependentUpon>
+    </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -10,9 +10,10 @@ namespace GP_Isoline
    {
       private static IsolineDrawableOverrule _overruleIsolineDraw = null;
       private static IsolineTransformOverrule _overruleIsolineTrans = null;
+      public static IsolineOptions Options;
 
       [CommandMethod("PIK", "GP-Isoline", CommandFlags.Modal)]
-      public void GpIsolines()
+      public void GpIsoline()
       {
          Document doc = Application.DocumentManager.MdiActiveDocument;
          if (doc == null) return;
@@ -20,11 +21,15 @@ namespace GP_Isoline
          Isoline.RegAppIsoline();
          Editor ed = doc.Editor;
 
+         Options = IsolineOptions.Load();
+
          var optKeywords = new PromptKeywordOptions(
             $"Отрисовка бергштрихов для полилиний {(_overruleIsolineDraw == null ? "Отключена" : "Включена")}");
 
          optKeywords.Keywords.Add($"{(_overruleIsolineDraw == null ? "Включить" : "Отключить")}");
          optKeywords.Keywords.Add($"{(_overruleIsolineDraw == null ? "Разморозить" : "Заморозить")}");
+         optKeywords.Keywords.Add("Настройки");
+
 
          var resPrompt = ed.GetKeywords(optKeywords);
 
@@ -52,8 +57,12 @@ namespace GP_Isoline
                // выключение изолиний
                IsolinesOff();
             }
-            Application.DocumentManager.MdiActiveDocument.Editor.Regen();
+            else if (resPrompt.StringResult == "Настройки")
+            {
+               Options = Options.Show();
+            }
          }
+         Application.DocumentManager.MdiActiveDocument.Editor.Regen();
       }
 
       private static void IsolinesOff()

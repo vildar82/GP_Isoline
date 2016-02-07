@@ -27,7 +27,12 @@ namespace GP_Isoline.Model
                //isoline.Activate(false); fatal
                Isoline.RemoveXData(entity);
             }
-         }                  
+         }
+         if (entity is Line)
+         {
+            entitySet.Add((DBObject)entity.Clone());
+            return;
+         }
          base.Explode(entity, entitySet);         
       }
    }
