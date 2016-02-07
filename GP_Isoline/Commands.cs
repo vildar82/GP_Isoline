@@ -61,12 +61,12 @@ namespace GP_Isoline
          ContextMenuIsoline.Detach();
          if (_overruleIsolineDraw != null)
          {
-            Overrule.RemoveOverrule(RXClass.GetClass(typeof(Polyline)), _overruleIsolineDraw);
+            Overrule.RemoveOverrule(RXClass.GetClass(typeof(Curve)), _overruleIsolineDraw);
             _overruleIsolineDraw = null;
          }
          if (_overruleIsolineTrans != null)
          {
-            Overrule.RemoveOverrule(RXClass.GetClass(typeof(Polyline)), _overruleIsolineTrans);
+            Overrule.RemoveOverrule(RXClass.GetClass(typeof(Curve)), _overruleIsolineTrans);
             _overruleIsolineTrans = null;
          }
       }
@@ -77,12 +77,12 @@ namespace GP_Isoline
          if (_overruleIsolineDraw == null)
          {
             _overruleIsolineDraw = new IsolineDrawableOverrule();
-            Overrule.AddOverrule(RXClass.GetClass(typeof(Polyline)), _overruleIsolineDraw, false);
+            Overrule.AddOverrule(RXClass.GetClass(typeof(Curve)), _overruleIsolineDraw, false);
          }
          if (_overruleIsolineTrans == null)
          {
             _overruleIsolineTrans = new IsolineTransformOverrule();
-            Overrule.AddOverrule(RXClass.GetClass(typeof(Polyline)), _overruleIsolineTrans, false);
+            Overrule.AddOverrule(RXClass.GetClass(typeof(Curve)), _overruleIsolineTrans, false);
          }
       }
    }

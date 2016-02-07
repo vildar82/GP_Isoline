@@ -1,34 +1,47 @@
 ﻿using System;
+using System.Linq;
 using System.Collections.Generic;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
+using Autodesk.AutoCAD.Runtime;
 
 namespace GP_Isoline.Model
 {
    public class Isoline
    {
+      public static RXClass RxCurve = RXClass.GetClass(typeof(Curve));
       public const string RegAppNAME = "GP-Isoline";
-      public ObjectId IdPolyline { get; private set; }
+      public ObjectId IdCurve { get; private set; }
+      /// <summary>
+      /// Это линия для бергштрихов
+      /// </summary>
       public bool IsIsoline { get; private set; }
+      /// <summary>
+      /// Это линия бергштриха
+      /// </summary>
+      public bool IsDash { get; private set; }
       public bool IsNegate { get; private set; }
 
-      public Isoline(Polyline pl)
+      public Isoline(Curve curve)
       {
-         IdPolyline = pl.Id;
-         getIsolineProperties(pl);
+         IdCurve = curve.Id;
+         getIsolineProperties(curve);
       }
 
       public Isoline(ObjectId id)
       {
-         IdPolyline = id;
-         using (var pl = id.Open(OpenMode.ForRead, false, true) as Polyline)
+         IdCurve = id;
+         using (var curve = id.Open(OpenMode.ForRead, false, true) as Curve)
          {
-            getIsolineProperties(pl);
+            getIsolineProperties(curve);
          }
       }
 
+      /// <summary>
+      /// Превратить все штрихи в отдельные линии
+      /// </summary>
       public static void FreezeAll()
       {
          Document doc = Application.DocumentManager.MdiActiveDocument;
@@ -45,13 +58,13 @@ namespace GP_Isoline.Model
                   List<Line> linesInBtr = new List<Line>();
                   foreach (var idEnt in btr)
                   {
-                     if (idEnt.ObjectClass.Name == "AcDbPolyline")
+                     if (idEnt.ObjectClass.IsDerivedFrom(RxCurve))
                      {
-                        var pl = idEnt.GetObject(OpenMode.ForRead, false, true) as Polyline;
-                        Isoline isoline = new Isoline(pl);
+                        var curve = idEnt.GetObject(OpenMode.ForRead, false, true) as Curve;
+                        Isoline isoline = new Isoline(curve);
                         if (isoline.IsIsoline)
                         {
-                           var lines = isoline.GetLines(pl);
+                           var lines = isoline.GetLines(curve);
                            linesInBtr.AddRange(lines);
                         }
                      }
@@ -61,7 +74,8 @@ namespace GP_Isoline.Model
                      btr.UpgradeOpen();
                      foreach (var line in linesInBtr)
                      {
-                        SetLineXData(line);
+                        // Пометить линию как бергштрих
+                        SetDashXData(line);
                         btr.AppendEntity(line);
                         t.AddNewlyCreatedDBObject(line, true);
                      }
@@ -93,6 +107,17 @@ namespace GP_Isoline.Model
          }
       }
 
+      public static void RemoveXData(DBObject dbo)
+      {
+         if (dbo.GetXDataForApplication(RegAppNAME)!=null)
+         {
+            ResultBuffer rb = rb = new ResultBuffer(new TypedValue(1001, RegAppNAME));
+            dbo.UpgradeOpen();
+            dbo.XData = rb;
+            dbo.DowngradeOpen();
+         }
+      }
+
       public static void UnfreezeAll()
       {
          Document doc = Application.DocumentManager.MdiActiveDocument;
@@ -111,7 +136,9 @@ namespace GP_Isoline.Model
                      if (idEnt.ObjectClass.Name == "AcDbLine")
                      {
                         var line = idEnt.GetObject(OpenMode.ForRead, false, true) as Line;
-                        if (line.GetXDataForApplication(RegAppNAME) != null)
+                        Isoline isoline = new Isoline(line);                        
+                        // Если это штрих, то удвляем ее, она автоматом построится при overrule
+                        if (isoline.IsDash)
                         {
                            line.UpgradeOpen();
                            line.Erase();
@@ -124,53 +151,119 @@ namespace GP_Isoline.Model
          }
       }
 
-      /// <summary>
-      /// Включение бергштрихов для полилинии - запись xdata
-      /// Должна быть запущена транзакция!!!
-      /// </summary>
-      public void Activate()
+      public static void ActivateIsolines(bool activate)
       {
-         using (var pl = IdPolyline.GetObject(OpenMode.ForRead, false, true) as Polyline)
+         Document doc = Application.DocumentManager.MdiActiveDocument;
+         using (doc.LockDocument())
          {
-            ResultBuffer rb = pl.GetXDataForApplication(RegAppNAME);
-            if (rb != null)
+            Editor ed = doc.Editor;
+            PromptSelectionResult result = ed.SelectImplied();
+            if (result.Status == PromptStatus.OK)
             {
-               return;
-            }
-            using (rb = new ResultBuffer(new TypedValue(1001, RegAppNAME),
-                                         new TypedValue((int)DxfCode.ExtendedDataInteger16, 0)))
-            {
-               pl.UpgradeOpen();
-               pl.XData = rb;
+               var selIds = result.Value.GetObjectIds();
+               if (selIds.Count() > 0)
+               {
+                  using (var t = doc.Database.TransactionManager.StartTransaction())
+                  {
+                     foreach (var item in selIds)
+                     {
+                        if (item.ObjectClass.IsDerivedFrom(Isoline.RxCurve))
+                        {
+                           Isoline isoline = new Isoline(item);
+                           // Активация изолинии
+                           if (activate)
+                           {
+                              if (!isoline.IsIsoline)
+                              {
+                                 isoline.Activate(true);
+                              }
+                           }
+                           // Отключение изолинии
+                           else
+                           {
+                              if (isoline.IsIsoline)
+                              {
+                                 isoline.Activate(false);
+                              }
+                           }
+                        }
+                     }
+                     t.Commit();
+                  }
+               }
             }
          }
       }
 
-      public List<Line> GetLines(Polyline pl)
+      /// <summary>
+      /// Включение/отключение бергштрихов для полилинии - запись xdata
+      /// Должна быть запущена транзакция!!!
+      /// </summary>
+      public void Activate(bool activate)
+      {
+         using (var curve = IdCurve.GetObject(OpenMode.ForRead, false, true) as Curve)
+         {
+            //ResultBuffer rb = curve.GetXDataForApplication(RegAppNAME);
+            ResultBuffer rb;
+            if (activate)
+            {
+               rb = new ResultBuffer(new TypedValue(1001, RegAppNAME),
+                                         // 0 - прямой штрих, 1 - обратный
+                                         new TypedValue((int)DxfCode.ExtendedDataInteger16, 0),
+                                         // 0 - изолиния, 1 - бергштрих
+                                         new TypedValue((int)DxfCode.ExtendedDataInteger16, 0)
+                                     );
+            }
+            else
+            {
+               rb = new ResultBuffer(new TypedValue(1001, RegAppNAME));
+            }            
+            curve.UpgradeOpen();
+            curve.XData = rb;
+         }
+      }      
+
+      public List<Line> GetLines(Curve curve)
       {
          List<Line> lines = new List<Line>();
-         for (int i = 0; i < pl.NumberOfVertices; i++)
+         if (curve is Polyline)
          {
-            SegmentType segmentType = pl.GetSegmentType(i);
-            if (segmentType == SegmentType.Line)
+            Polyline pl =(Polyline)curve;
+            for (int i = 0; i < pl.NumberOfVertices; i++)
             {
-               var lineSegment = pl.GetLineSegmentAt(i);
-
-               Vector3d vectorIsoline = lineSegment.Direction.GetPerpendicularVector() * 5;
-               if (IsNegate)
+               SegmentType segmentType = pl.GetSegmentType(i);
+               if (segmentType == SegmentType.Line)
                {
-                  vectorIsoline = vectorIsoline.Negate();
+                  var lineSegment = pl.GetLineSegmentAt(i);
+                  var line = getLine(lineSegment, curve);
+                  lines.Add(line);
                }
-               Point3d ptEndIsoline = lineSegment.MidPoint + vectorIsoline;
-               Line line = new Line(lineSegment.MidPoint, ptEndIsoline);
-               line.Layer = pl.Layer;
-               line.LineWeight = pl.LineWeight;
-               line.Color = pl.Color;
-               line.Linetype = SymbolUtilityServices.LinetypeContinuousName;
-               lines.Add(line);
             }
          }
+         else if (curve is Line)
+         {
+            Line lineCurve = (Line)curve;
+            LineSegment3d segment = new LineSegment3d(lineCurve.StartPoint, lineCurve.EndPoint);
+            var line = getLine(segment, curve);
+            lines.Add(line);
+         }
          return lines;
+      }
+
+      private Line getLine(LineSegment3d segment, Curve curve)
+      {
+         Vector3d vectorIsoline = segment.Direction.GetPerpendicularVector() * 5;
+         if (IsNegate)
+         {
+            vectorIsoline = vectorIsoline.Negate();
+         }
+         Point3d ptEndIsoline = segment.MidPoint + vectorIsoline;
+         Line line = new Line(segment.MidPoint, ptEndIsoline);
+         line.Layer = curve.Layer;
+         line.LineWeight = curve.LineWeight;
+         line.Color = curve.Color;
+         line.Linetype = SymbolUtilityServices.LinetypeContinuousName;
+         return line;
       }
 
       /// <summary>
@@ -179,9 +272,9 @@ namespace GP_Isoline.Model
       /// </summary>
       public void ReverseIsoline()
       {
-         using (var pl = IdPolyline.GetObject(OpenMode.ForWrite, false, true) as Polyline)
+         using (var curve = IdCurve.GetObject(OpenMode.ForWrite, false, true) as Curve)
          {
-            ResultBuffer rb = pl.GetXDataForApplication(RegAppNAME);
+            ResultBuffer rb = curve.GetXDataForApplication(RegAppNAME);
             if (rb != null)
             {
                var data = rb.AsArray();
@@ -201,36 +294,48 @@ namespace GP_Isoline.Model
                {
                   using (ResultBuffer rbNew = new ResultBuffer(data))
                   {
-                     pl.XData = rbNew;
+                     curve.XData = rbNew;
                   }
                }
             }
          }
       }
 
-      private static void SetLineXData(Line line)
+      private static void SetDashXData(Line line)
       {
          using (ResultBuffer rb = new ResultBuffer(new TypedValue(1001, RegAppNAME),
-                                      new TypedValue((int)DxfCode.ExtendedDataInteger16, 0)))
+                                      new TypedValue((int)DxfCode.ExtendedDataInteger16, 0),
+                                      new TypedValue((int)DxfCode.ExtendedDataInteger16, 1)))                                      
          {
             line.XData = rb;
          }
       }
 
-      private void getIsolineProperties(Polyline pl)
+      private void getIsolineProperties(Curve curve)
       {
-         ResultBuffer rb = pl.GetXDataForApplication(RegAppNAME);
+         ResultBuffer rb = curve.GetXDataForApplication(RegAppNAME);
          if (rb != null)
          {
-            foreach (var item in rb)
+            TypedValue[] tvs = rb.AsArray();
+            int countTvs = tvs.Count();
+            if (countTvs>1)
             {
-               if (item.TypeCode == (short)DxfCode.ExtendedDataInteger16)
+               TypedValue tvNegate = tvs[1];
+               if (tvNegate.TypeCode == (short)DxfCode.ExtendedDataInteger16)
                {
-                  IsNegate = Convert.ToBoolean(item.Value);
+                  IsNegate = Convert.ToBoolean(tvNegate.Value);
                }
             }
-         }
-         IsIsoline = (rb != null);
+            if (countTvs>2)
+            {
+               TypedValue tvTypeIsoline = tvs[2];
+               if (tvTypeIsoline.TypeCode == (short)DxfCode.ExtendedDataInteger16)
+               {
+                  IsDash = Convert.ToBoolean(tvTypeIsoline.Value);
+               }
+            }
+            IsIsoline = !IsDash;     
+         }         
       }
    }
 }

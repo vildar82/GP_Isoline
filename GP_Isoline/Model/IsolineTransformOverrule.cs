@@ -1,4 +1,6 @@
-﻿using Autodesk.AutoCAD.DatabaseServices;
+﻿using System;
+using System.Linq;
+using Autodesk.AutoCAD.DatabaseServices;
 
 namespace GP_Isoline.Model
 {
@@ -10,21 +12,23 @@ namespace GP_Isoline.Model
       }
 
       public override void Explode(Entity entity, DBObjectCollection entitySet)
-      {
-         base.Explode(entity, entitySet);
-         Polyline pl = entity as Polyline;
-         if (pl != null)
+      {         
+         Curve curve = entity as Curve;
+         if (curve != null)
          {
-            Isoline isoline = new Isoline(pl);
+            Isoline isoline = new Isoline(curve);
             if (isoline.IsIsoline)
             {
-               var lines = isoline.GetLines(pl);
+               var lines = isoline.GetLines(curve);
                foreach (var line in lines)
                {
                   entitySet.Add(line);
                }
+               //isoline.Activate(false); fatal
+               Isoline.RemoveXData(entity);
             }
-         }
+         }                  
+         base.Explode(entity, entitySet);         
       }
    }
 }

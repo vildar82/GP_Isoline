@@ -15,13 +15,13 @@ namespace GP_Isoline.Model
          // draw the base class
          bool ret = base.WorldDraw(drawable, wd);
 
-         DB.Polyline pl = drawable as DB.Polyline;
-         if (pl != null)
+         DB.Curve curve = drawable as DB.Curve;
+         if (curve != null)
          {
-            Isoline isoline = new Isoline(pl);
+            Isoline isoline = new Isoline(curve);
             if (isoline.IsIsoline)
             {
-               var lines = isoline.GetLines(pl);
+               var lines = isoline.GetLines(curve);
                foreach (var line in lines)
                {
                   wd.Geometry.Draw(line);
