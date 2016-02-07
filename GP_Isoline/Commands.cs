@@ -8,9 +8,9 @@ namespace GP_Isoline
 {
    public class Commands
    {
+      public static IsolineOptions Options;
       private static IsolineDrawableOverrule _overruleIsolineDraw = null;
       private static IsolineTransformOverrule _overruleIsolineTrans = null;
-      public static IsolineOptions Options;
 
       [CommandMethod("PIK", "GP-Isoline", CommandFlags.Modal)]
       public void GpIsoline()
@@ -29,7 +29,6 @@ namespace GP_Isoline
          optKeywords.Keywords.Add($"{(_overruleIsolineDraw == null ? "Включить" : "Отключить")}");
          optKeywords.Keywords.Add($"{(_overruleIsolineDraw == null ? "Разморозить" : "Заморозить")}");
          optKeywords.Keywords.Add("Настройки");
-
 
          var resPrompt = ed.GetKeywords(optKeywords);
 

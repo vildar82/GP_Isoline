@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -11,17 +11,17 @@ namespace GP_Isoline.Model
 {
    public class Isoline
    {
-      public static RXClass RxCurve = RXClass.GetClass(typeof(Curve));
       public const string RegAppNAME = "GP-Isoline";
+      public static RXClass RxCurve = RXClass.GetClass(typeof(Curve));
       public ObjectId IdCurve { get; private set; }
-      /// <summary>
-      /// Это линия для бергштрихов
-      /// </summary>
-      public bool IsIsoline { get; private set; }
       /// <summary>
       /// Это линия бергштриха
       /// </summary>
       public bool IsDash { get; private set; }
+      /// <summary>
+      /// Это линия для бергштрихов
+      /// </summary>
+      public bool IsIsoline { get; private set; }
       public bool IsNegate { get; private set; }
 
       public Isoline(Curve curve)
@@ -36,6 +36,50 @@ namespace GP_Isoline.Model
          using (var curve = id.Open(OpenMode.ForRead, false, true) as Curve)
          {
             getIsolineProperties(curve);
+         }
+      }
+
+      public static void ActivateIsolines(bool activate)
+      {
+         Document doc = Application.DocumentManager.MdiActiveDocument;
+         using (doc.LockDocument())
+         {
+            Editor ed = doc.Editor;
+            PromptSelectionResult result = ed.SelectImplied();
+            if (result.Status == PromptStatus.OK)
+            {
+               var selIds = result.Value.GetObjectIds();
+               if (selIds.Count() > 0)
+               {
+                  using (var t = doc.Database.TransactionManager.StartTransaction())
+                  {
+                     foreach (var item in selIds)
+                     {
+                        if (item.ObjectClass.IsDerivedFrom(Isoline.RxCurve))
+                        {
+                           Isoline isoline = new Isoline(item);
+                           // Активация изолинии
+                           if (activate)
+                           {
+                              if (!isoline.IsIsoline)
+                              {
+                                 isoline.Activate(true);
+                              }
+                           }
+                           // Отключение изолинии
+                           else
+                           {
+                              if (isoline.IsIsoline)
+                              {
+                                 isoline.Activate(false);
+                              }
+                           }
+                        }
+                     }
+                     t.Commit();
+                  }
+               }
+            }
          }
       }
 
@@ -109,7 +153,7 @@ namespace GP_Isoline.Model
 
       public static void RemoveXData(DBObject dbo)
       {
-         if (dbo.GetXDataForApplication(RegAppNAME)!=null)
+         if (dbo.GetXDataForApplication(RegAppNAME) != null)
          {
             ResultBuffer rb = rb = new ResultBuffer(new TypedValue(1001, RegAppNAME));
             dbo.UpgradeOpen();
@@ -136,7 +180,7 @@ namespace GP_Isoline.Model
                      if (idEnt.ObjectClass.Name == "AcDbLine")
                      {
                         var line = idEnt.GetObject(OpenMode.ForRead, false, true) as Line;
-                        Isoline isoline = new Isoline(line);                        
+                        Isoline isoline = new Isoline(line);
                         // Если это штрих, то удвляем ее, она автоматом построится при overrule
                         if (isoline.IsDash)
                         {
@@ -147,50 +191,6 @@ namespace GP_Isoline.Model
                   }
                }
                t.Commit();
-            }
-         }
-      }
-
-      public static void ActivateIsolines(bool activate)
-      {
-         Document doc = Application.DocumentManager.MdiActiveDocument;
-         using (doc.LockDocument())
-         {
-            Editor ed = doc.Editor;
-            PromptSelectionResult result = ed.SelectImplied();
-            if (result.Status == PromptStatus.OK)
-            {
-               var selIds = result.Value.GetObjectIds();
-               if (selIds.Count() > 0)
-               {
-                  using (var t = doc.Database.TransactionManager.StartTransaction())
-                  {
-                     foreach (var item in selIds)
-                     {
-                        if (item.ObjectClass.IsDerivedFrom(Isoline.RxCurve))
-                        {
-                           Isoline isoline = new Isoline(item);
-                           // Активация изолинии
-                           if (activate)
-                           {
-                              if (!isoline.IsIsoline)
-                              {
-                                 isoline.Activate(true);
-                              }
-                           }
-                           // Отключение изолинии
-                           else
-                           {
-                              if (isoline.IsIsoline)
-                              {
-                                 isoline.Activate(false);
-                              }
-                           }
-                        }
-                     }
-                     t.Commit();
-                  }
-               }
             }
          }
       }
@@ -217,18 +217,18 @@ namespace GP_Isoline.Model
             else
             {
                rb = new ResultBuffer(new TypedValue(1001, RegAppNAME));
-            }            
+            }
             curve.UpgradeOpen();
             curve.XData = rb;
          }
-      }      
+      }
 
       public List<Line> GetLines(Curve curve)
       {
          List<Line> lines = new List<Line>();
          if (curve is Polyline)
          {
-            Polyline pl =(Polyline)curve;
+            Polyline pl = (Polyline)curve;
             for (int i = 0; i < pl.NumberOfVertices; i++)
             {
                SegmentType segmentType = pl.GetSegmentType(i);
@@ -248,22 +248,6 @@ namespace GP_Isoline.Model
             lines.Add(line);
          }
          return lines;
-      }
-
-      private Line getLine(LineSegment3d segment, Curve curve)
-      {
-         Vector3d vectorIsoline = segment.Direction.GetPerpendicularVector() * Commands.Options.DashLength;
-         if (IsNegate)
-         {
-            vectorIsoline = vectorIsoline.Negate();
-         }
-         Point3d ptEndIsoline = segment.MidPoint + vectorIsoline;
-         Line line = new Line(segment.MidPoint, ptEndIsoline);
-         line.Layer = curve.Layer;
-         line.LineWeight = curve.LineWeight;
-         line.Color = curve.Color;
-         line.Linetype = SymbolUtilityServices.LinetypeContinuousName;
-         return line;
       }
 
       /// <summary>
@@ -305,7 +289,7 @@ namespace GP_Isoline.Model
       {
          using (ResultBuffer rb = new ResultBuffer(new TypedValue(1001, RegAppNAME),
                                       new TypedValue((int)DxfCode.ExtendedDataInteger16, 0),
-                                      new TypedValue((int)DxfCode.ExtendedDataInteger16, 1)))                                      
+                                      new TypedValue((int)DxfCode.ExtendedDataInteger16, 1)))
          {
             line.XData = rb;
          }
@@ -318,7 +302,7 @@ namespace GP_Isoline.Model
          {
             TypedValue[] tvs = rb.AsArray();
             int countTvs = tvs.Count();
-            if (countTvs>1)
+            if (countTvs > 1)
             {
                TypedValue tvNegate = tvs[1];
                if (tvNegate.TypeCode == (short)DxfCode.ExtendedDataInteger16)
@@ -326,7 +310,7 @@ namespace GP_Isoline.Model
                   IsNegate = Convert.ToBoolean(tvNegate.Value);
                }
             }
-            if (countTvs>2)
+            if (countTvs > 2)
             {
                TypedValue tvTypeIsoline = tvs[2];
                if (tvTypeIsoline.TypeCode == (short)DxfCode.ExtendedDataInteger16)
@@ -334,8 +318,24 @@ namespace GP_Isoline.Model
                   IsDash = Convert.ToBoolean(tvTypeIsoline.Value);
                }
             }
-            IsIsoline = !IsDash;     
-         }         
+            IsIsoline = !IsDash;
+         }
+      }
+
+      private Line getLine(LineSegment3d segment, Curve curve)
+      {
+         Vector3d vectorIsoline = segment.Direction.GetPerpendicularVector() * Commands.Options.DashLength;
+         if (IsNegate)
+         {
+            vectorIsoline = vectorIsoline.Negate();
+         }
+         Point3d ptEndIsoline = segment.MidPoint + vectorIsoline;
+         Line line = new Line(segment.MidPoint, ptEndIsoline);
+         line.Layer = curve.Layer;
+         line.LineWeight = curve.LineWeight;
+         line.Color = curve.Color;
+         line.Linetype = SymbolUtilityServices.LinetypeContinuousName;
+         return line;
       }
    }
 }

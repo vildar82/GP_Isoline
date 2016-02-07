@@ -10,45 +10,20 @@ namespace GP_Isoline.Model
    [Serializable]
    public class IsolineOptions
    {
-      private static AcadLib.DictNOD dictNod = new AcadLib.DictNOD("GP_Isoline");
       private static readonly string fileOptions = Path.Combine(
                      AutoCAD_PIK_Manager.Settings.PikSettings.ServerShareSettingsFolder,
-                     "ГП\\GP_Isoline.xml");      
+                     "ГП\\GP_Isoline.xml");
 
-      private IsolineOptions()
-      {
-      }      
-
-      [DisplayName("Длина штриха по умолчанию")]            
-      public double DashLengthDefault { get; set; }
-      [DisplayName("Длина штриха в этом чертеже")]      
+      private static AcadLib.DictNOD dictNod = new AcadLib.DictNOD("GP_Isoline");
+      [DisplayName("Длина штриха в этом чертеже")]
       [XmlIgnore]
       public double DashLength { get; set; }
 
-      public void Save()
-      {
-         try
-         {            
-            if (!File.Exists(fileOptions))
-            {
-               Directory.CreateDirectory(Path.GetDirectoryName(fileOptions));
-            }
-            SerializerXml xmlSer = new SerializerXml(fileOptions);
-            xmlSer.SerializeList(this);
-            SaveDrawingOptions();
-         }
-         catch (Exception ex)
-         {
-            Logger.Log.Error(ex, "Не удалось сериализовать настройки в {0}", fileOptions);
-         }
-      }
+      [DisplayName("Длина штриха по умолчанию")]
+      public double DashLengthDefault { get; set; }
 
-      private static IsolineOptions DefaultOptions()
+      private IsolineOptions()
       {
-         IsolineOptions options = new IsolineOptions();
-         options.DashLengthDefault = 5;
-         options.DashLength = 5;
-         return options;
       }
 
       public static IsolineOptions Load()
@@ -63,7 +38,7 @@ namespace GP_Isoline.Model
                options = xmlSer.DeserializeXmlFile<IsolineOptions>();
                if (options != null)
                {
-                  options.LoadDrawingOptions();      
+                  options.LoadDrawingOptions();
                   return options;
                }
             }
@@ -75,6 +50,24 @@ namespace GP_Isoline.Model
          return DefaultOptions();
       }
 
+      public void Save()
+      {
+         try
+         {
+            if (!File.Exists(fileOptions))
+            {
+               Directory.CreateDirectory(Path.GetDirectoryName(fileOptions));
+            }
+            SerializerXml xmlSer = new SerializerXml(fileOptions);
+            xmlSer.SerializeList(this);
+            SaveDrawingOptions();
+         }
+         catch (Exception ex)
+         {
+            Logger.Log.Error(ex, "Не удалось сериализовать настройки в {0}", fileOptions);
+         }
+      }
+
       public IsolineOptions Show()
       {
          IsolineOptions resVal = this;
@@ -82,18 +75,27 @@ namespace GP_Isoline.Model
          if (Application.ShowModalDialog(formOpt) == System.Windows.Forms.DialogResult.OK)
          {
             resVal = formOpt.IsolineOptions;
-            resVal.Save();            
+            resVal.Save();
          }
          return resVal;
+      }
+
+      private static IsolineOptions DefaultOptions()
+      {
+         IsolineOptions options = new IsolineOptions();
+         options.DashLengthDefault = 5;
+         options.DashLength = 5;
+         return options;
       }
 
       private void LoadDrawingOptions()
       {
          DashLength = dictNod.Load("DashLength", DashLengthDefault);
       }
+
       private void SaveDrawingOptions()
       {
-         dictNod.Save(DashLength,"DashLength");
+         dictNod.Save(DashLength, "DashLength");
       }
    }
 }

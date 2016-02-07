@@ -9,7 +9,7 @@ using Autodesk.AutoCAD.Windows;
 namespace GP_Isoline.Model
 {
    public class ContextMenuIsoline
-   {      
+   {
       private static ContextMenuExtension cme;
 
       public static void Attach()
@@ -27,11 +27,6 @@ namespace GP_Isoline.Model
       {
          RXClass rxc = Entity.GetClass(typeof(Curve));
          Application.RemoveObjectContextMenuExtension(rxc, cme);
-      }
-
-      private static void UnActivateIsolines(object sender, EventArgs e)
-      {
-         Isoline.ActivateIsolines(false);
       }
 
       private static void ActivateIsolines(object sender, EventArgs e)
@@ -85,7 +80,7 @@ namespace GP_Isoline.Model
          //      item.Click -= new EventHandler(PrintHello);
          //      cme.MenuItems.Remove(item);
          //   }
-      }     
+      }
 
       private static void ReverseIsolines(object sender, EventArgs e)
       {
@@ -117,6 +112,11 @@ namespace GP_Isoline.Model
                }
             }
          }
+      }
+
+      private static void UnActivateIsolines(object sender, EventArgs e)
+      {
+         Isoline.ActivateIsolines(false);
       }
    }
 }
