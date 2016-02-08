@@ -17,7 +17,9 @@ namespace GP_Isoline
       {
          Document doc = Application.DocumentManager.MdiActiveDocument;
          if (doc == null) return;
-                  
+
+         Logger.Log.Info("Start Command: GP-Isoline");
+
          Editor ed = doc.Editor;
 
          Options = IsolineOptions.Load();
